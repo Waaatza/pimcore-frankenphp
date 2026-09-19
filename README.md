@@ -1,3 +1,6 @@
+> [!WARNING]
+> Everything in this repository is experimental and has not been used on production systems. Do not use it in production.
+
 # Pimcore on FrankenPHP
 
 This repository documents the infrastructure-only changes required to run a
