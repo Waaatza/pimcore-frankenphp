@@ -1,0 +1,50 @@
+{
+	skip_install_trust
+
+	frankenphp {
+		max_requests 100
+	}
+}
+
+:80 {
+	root * /var/www/html/public
+	encode zstd br gzip
+
+	request_body {
+		max_size 100MB
+	}
+
+	mercure {
+		publisher_jwt {env.MERCURE_JWT_KEY}
+		subscriber_jwt {env.MERCURE_JWT_KEY}
+		anonymous
+	}
+
+	@uploadedPhp path_regexp uploadedPhp ^/var/assets/.*\.php(/|$)
+	respond @uploadedPhp 404
+
+	@blockedHidden {
+		path_regexp hidden (^|/)\.
+		not path /.well-known/*
+	}
+	respond @blockedHidden 404
+
+	@backup path_regexp backup (\.(bak|conf(ig)?|dist|fla|in[ci]|log|psd|sh|sql|sw[op])|~)$
+	respond @backup 404
+
+	@cacheBuster path_regexp cacheBuster ^/cache-buster-\d+/(.*)$
+	rewrite @cacheBuster /{re.cacheBuster.1}
+
+	php_server {
+		try_files {path} /index.php
+		worker {
+			file /var/www/html/public/index.php
+			num 4
+			watch /var/www/html/config
+			watch /var/www/html/src
+			watch /var/www/html/templates
+			watch /var/www/html/translations
+			watch /var/www/html/public/index.php
+		}
+	}
+}

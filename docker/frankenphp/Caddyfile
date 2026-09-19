@@ -1,0 +1,60 @@
+{
+	skip_install_trust
+
+	frankenphp {
+		max_requests 100
+	}
+}
+
+:80 {
+	root * /var/www/html/public
+	encode zstd br gzip
+
+	request_body {
+		max_size 100MB
+	}
+
+	mercure {
+		publisher_jwt {env.MERCURE_JWT_KEY}
+		subscriber_jwt {env.MERCURE_JWT_KEY}
+		anonymous
+	}
+
+	# Never execute uploaded PHP files.
+	@uploadedPhp path_regexp uploadedPhp ^/var/assets/.*\.php(/|$)
+	respond @uploadedPhp 404
+
+	# Block dotfiles while preserving standardized /.well-known endpoints.
+	@blockedHidden {
+		path_regexp hidden (^|/)\.
+		not path /.well-known/*
+	}
+	respond @blockedHidden 404
+
+	# Block common source, backup and configuration file suffixes.
+	@backup path_regexp backup (\.(bak|conf(ig)?|dist|fla|in[ci]|log|psd|sh|sql|sw[op])|~)$
+	respond @backup 404
+
+	@cacheBuster path_regexp cacheBuster ^/cache-buster-\d+/(.*)$
+	rewrite @cacheBuster /{re.cacheBuster.1}
+
+	# Pimcore keeps generated thumbnails and asset derivatives below public/var.
+	@thumbnail path_regexp thumbnail .*/(image|video)-thumb__\d+__.*
+	handle @thumbnail {
+		try_files /var/tmp/thumbnails{path} {path} /index.php
+		php_server
+		header Cache-Control "public, max-age=1209600"
+	}
+
+	@static path_regexp static .+\.(css|js|map|jpe?g|gif|png|svgz?|eps|gz|json|zip|mp\d|m4a|ogg|ogv|webp|webm|pdf|csv|docx?|xlsx?|pptx?)$
+	handle @static {
+		try_files /var/assets{path} {path} /index.php
+		php_server
+		header Cache-Control "public, max-age=1209600"
+	}
+
+	# Classic mode is the compatibility-first default.
+	php_server {
+		try_files {path} /index.php
+	}
+}

@@ -1,0 +1,77 @@
+services:
+    redis:
+        image: redis:alpine
+        command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, volatile-lru, --save, ""]
+
+    rabbitmq:
+        image: rabbitmq:alpine
+        volumes:
+            - pimcore-rabbitmq:/var/lib/rabbitmq/
+
+    db:
+        image: mariadb:10.11
+        command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_520_ci, --innodb-file-per-table=1]
+        environment:
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-root}
+            MYSQL_DATABASE: ${MYSQL_DATABASE:-pimcore}
+            MYSQL_USER: ${MYSQL_USER:-pimcore}
+            MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+        healthcheck:
+            test: ["CMD-SHELL", "mariadb -h db -u$$MYSQL_USER -p$$MYSQL_PASSWORD $$MYSQL_DATABASE -e 'SELECT 1'"]
+            interval: 10s
+            retries: 6
+            start_period: 1m
+            timeout: 3s
+        volumes:
+            - pimcore-database:/var/lib/mysql
+
+    frankenphp:
+        build:
+            context: .docker/frankenphp
+        working_dir: /var/www/html
+        ports:
+            - "80:80"
+        environment:
+            COMPOSER_HOME: /tmp/composer
+            PHP_IDE_CONFIG: serverName=localhost
+            MERCURE_JWT_KEY: ${MERCURE_JWT_KEY:?Set MERCURE_JWT_KEY in an untracked environment file}
+        depends_on:
+            db:
+                condition: service_healthy
+        volumes:
+            - .:/var/www/html
+            - ./.docker/frankenphp/Caddyfile:/etc/frankenphp/Caddyfile:ro
+
+    supervisord:
+        image: pimcore/pimcore:php8.5-supervisord-5.x
+        depends_on:
+            rabbitmq:
+                condition: service_started
+            db:
+                condition: service_healthy
+        volumes:
+            - .:/var/www/html
+            - ./.docker/supervisord.conf:/etc/supervisor/conf.d/pimcore.conf:ro
+
+    opensearch:
+        image: opensearchproject/opensearch:2
+        environment:
+            discovery.type: single-node
+            action.auto_create_index: "false"
+            bootstrap.memory_lock: "true"
+            OPENSEARCH_JAVA_OPTS: -Xms1024m -Xmx1024m
+            OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:?Set OPENSEARCH_INITIAL_ADMIN_PASSWORD}
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+            nofile:
+                soft: 65536
+                hard: 65536
+        volumes:
+            - pimcore-opensearch:/usr/share/opensearch/data
+
+volumes:
+    pimcore-database:
+    pimcore-rabbitmq:
+    pimcore-opensearch:

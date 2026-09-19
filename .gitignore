@@ -1,0 +1,10 @@
+.env
+.env.local
+.idea/
+.vscode/
+vendor/
+var/
+public/var/
+docker-compose.override.yaml
+LICENSE
+docs/publication-checklist.md
