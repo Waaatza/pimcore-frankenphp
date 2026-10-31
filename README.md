@@ -62,6 +62,10 @@ Studio at `http://localhost/pimcore-studio`.
   it only after completing the [worker-mode checklist](docs/worker-mode.md).
 
 Switch to the worker example by changing the Caddyfile mount in Compose.
+The [worker-mode notes](docs/worker-mode.md#development-file-watching) also cover
+source-only watching and the Studio CSP reset workaround. See the
+[migration notes](docs/migration.md#local-environment-and-cli-worker-healthchecks)
+for local environment loading and healthchecks on CLI workers sharing the image.
 
 ## Production
 

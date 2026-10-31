@@ -40,10 +40,11 @@
 		worker {
 			file /var/www/html/public/index.php
 			num 4
-			watch /var/www/html/config
-			watch /var/www/html/src
-			watch /var/www/html/templates
-			watch /var/www/html/translations
+			# Watch source files only; avoid restarts on Git/build/temp changes.
+			watch /var/www/html/config/**/*.{env,php,twig,yaml,yml}
+			watch /var/www/html/src/**/*.{env,php,twig,yaml,yml}
+			watch /var/www/html/templates/**/*.{env,php,twig,yaml,yml}
+			watch /var/www/html/translations/**/*.{env,php,twig,yaml,yml}
 			watch /var/www/html/public/index.php
 		}
 	}

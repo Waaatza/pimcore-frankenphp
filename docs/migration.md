@@ -75,3 +75,40 @@ minimal Dockerfile here. Add only what the application uses, such as FFmpeg,
 Ghostscript, LibreOffice, Chromium, Poppler, Inkscape, pngquant, optipng,
 jpegoptim, ExifTool or Graphviz. Run Pimcore's requirements check after every
 image change.
+
+## Local environment and CLI worker healthchecks
+
+The application integration now loads `.env.local` into the FrankenPHP
+container using Compose:
+
+```yaml
+services:
+    frankenphp:
+        env_file:
+            - .env.local
+```
+
+Create this untracked file before starting the service. This passes variables
+to the container process, including auxiliary processes started alongside
+FrankenPHP. Symfony's dotenv loading alone does not configure those processes.
+Explicit `environment` entries take precedence over values from `env_file`;
+remove redundant entries when the file should supply their values. Keep
+project-specific variables in the application repository.
+
+Service-level `env_file` does not supply Compose `${VARIABLE}` interpolation.
+For the example's interpolated values, use a shell environment, `.env`, or
+`docker compose --env-file .env.local …` as appropriate.
+
+If a separate Messenger/Scheduler service reuses a FrankenPHP image with an
+HTTP healthcheck, its CLI command does not start Caddy. The application
+integration disables that inherited check on its CLI worker:
+
+```yaml
+healthcheck:
+    disable: true
+```
+
+Apply this only to CLI services using that image. Keep the HTTP service's
+healthcheck enabled. Disabling the probe does not monitor consumer progress;
+use a consumer-specific check if that is required. The standalone supervisord
+image in this repository's Compose example does not need this override.
